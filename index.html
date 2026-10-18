@@ -1,0 +1,476 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<title>Last Stand — Survival</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg:#101827; --panel:#1b293d; --line:#354964;
+  --text:#eef5ff; --gold:#ffd166; --green:#5de0a0;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; background:var(--bg); color:var(--text);
+  font:15px system-ui,sans-serif;
+}
+button,select {
+  border:1px solid var(--line); border-radius:10px;
+  background:#2a3c56; color:white; padding:11px 9px;
+  font:inherit; font-weight:700; touch-action:manipulation;
+}
+button:active { filter:brightness(1.3); }
+header {
+  display:flex; justify-content:space-between; align-items:center;
+  gap:8px; padding:10px; flex-wrap:wrap;
+}
+h1 { font-size:19px; margin:0; color:var(--gold); }
+.stats { display:flex; gap:8px; font-weight:bold; flex-wrap:wrap; }
+main { max-width:1000px; margin:auto; padding:8px; }
+#gamebox {
+  background:#172235; border:1px solid var(--line);
+  border-radius:14px; overflow:hidden;
+}
+#gamehead {
+  display:flex; justify-content:space-between; gap:8px;
+  padding:8px 12px; align-items:center;
+}
+#gamehead small { color:#b7c6dc; }
+canvas {
+  display:block; width:100%; height:auto; aspect-ratio:16/9;
+  background:#17283d; touch-action:none;
+}
+.controls {
+  display:grid; grid-template-columns:repeat(6,minmax(0,1fr));
+  gap:5px; padding:7px;
+}
+.controls button { min-width:0; padding:12px 2px; font-size:12px; }
+.actions {
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px; padding:0 7px 8px;
+}
+.actions button { padding:10px 3px; font-size:12px; }
+.primary { background:#e99c3b; color:#211609; }
+#fullscreenBtn { background:#176044; }
+section { background:var(--panel); margin-top:10px; padding:12px; border-radius:12px; }
+section h2 { font-size:16px; margin:0 0 8px; }
+.shop { display:flex; gap:7px; flex-wrap:wrap; }
+.shop button { flex:1; }
+select { max-width:100%; }
+#message { color:#c7d5e9; font-size:13px; min-height:20px; }
+.ad {
+  margin-top:10px; border:1px dashed #667a96; padding:15px;
+  text-align:center; color:#b7c6dc; border-radius:10px; font-size:12px;
+}
+body.fullscreen { overflow:hidden; }
+#gamebox:fullscreen,#gamebox:-webkit-full-screen {
+  width:100vw; height:100dvh; max-width:none; margin:0;
+  border:0; border-radius:0; display:flex; flex-direction:column;
+  background:#101827;
+}
+#gamebox:fullscreen #gamehead,
+#gamebox:-webkit-full-screen #gamehead { flex-shrink:0; padding:4px 9px; }
+#gamebox:fullscreen canvas,
+#gamebox:-webkit-full-screen canvas {
+  flex:1; min-height:0; height:auto; width:100%;
+  aspect-ratio:auto; object-fit:fill;
+}
+#gamebox:fullscreen .controls,
+#gamebox:-webkit-full-screen .controls {
+  flex-shrink:0; padding:4px; gap:4px;
+}
+#gamebox:fullscreen .controls button,
+#gamebox:-webkit-full-screen .controls button {
+  font-size:clamp(10px,2vw,14px); padding:10px 1px;
+}
+#gamebox:fullscreen .actions,
+#gamebox:-webkit-full-screen .actions {
+  flex-shrink:0; padding:3px; gap:4px;
+}
+#gamebox:fullscreen .actions button,
+#gamebox:-webkit-full-screen .actions button { padding:7px 2px; }
+@media (max-width:760px) {
+  main { padding:4px; }
+  header { padding:6px; }
+  section,.ad { margin-top:6px; }
+}
+@media (max-width:760px) and (orientation:landscape) {
+  header { padding:3px 7px; }
+  h1 { font-size:14px; }
+  .stats { font-size:12px; }
+  #gamehead { padding:4px 7px; }
+  #gamebox:not(:fullscreen) .controls {
+    grid-template-columns:repeat(6,minmax(0,1fr)); gap:3px; padding:4px;
+  }
+  #gamebox:not(:fullscreen) .controls button {
+    font-size:10px; padding:8px 1px;
+  }
+  #gamebox:not(:fullscreen) .actions { padding:0 4px 4px; }
+  #gamebox:not(:fullscreen) .actions button { font-size:10px; padding:7px 2px; }
+  .ad { display:none; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔ LAST STAND</h1>
+  <div class="stats">
+    <span>❤️ <span id="health">100</span></span>
+    <span>🌊 Wave <span id="wave">1</span></span>
+    <span>🪙 <span id="coins">0</span></span>
+    <span>🔫 <span id="ammo">12/12</span></span>
+  </div>
+</header>
+
+<main>
+<div id="gamebox">
+  <div id="gamehead">
+    <strong id="mapname">ROOFTOP DISTRICT</strong>
+    <small id="status">Press START to deploy</small>
+  </div>
+  <canvas id="game" width="960" height="540"></canvas>
+
+  <div class="controls">
+    <button id="left">◀ LEFT</button>
+    <button id="jump">⬆ JUMP</button>
+    <button id="right">RIGHT ▶</button>
+    <button id="fire" class="primary">🔫 FIRE</button>
+    <button id="reload">↻ RELOAD</button>
+    <button id="med">✚ MEDKIT</button>
+  </div>
+
+  <div class="actions">
+    <button id="start" class="primary">▶ START</button>
+    <button id="restart">⟲ RESTART</button>
+    <button id="fullscreenBtn">⛶ FULLSCREEN</button>
+  </div>
+</div>
+
+<section>
+  <h2>🗺 Choose your map</h2>
+  <select id="map">
+    <option value="0">Rooftop District</option>
+    <option value="1">Desert Outpost</option>
+    <option value="2">Jungle Ruins</option>
+  </select>
+  <h2 style="margin-top:14px">🛠 Upgrade your equipment</h2>
+  <div class="shop">
+    <button id="buyMed">Medkit · 15 coins</button>
+    <button id="buyArmor">Armor · 30 coins</button>
+    <button id="buyAmmo">Magazine · 25 coins</button>
+  </div>
+  <p id="message">Survive waves to earn virtual coins. Coins are not cash.</p>
+</section>
+
+<div class="ad">
+  ADVERTISEMENT SPACE<br>
+  Advertising is inactive until you connect an approved advertising provider.
+</div>
+
+<section>
+  <h2>⭐ Support the game</h2>
+  <p>Optional supporter purchase. No payment is taken until you configure a real hosted checkout link.</p>
+  <div class="shop">
+    <button id="support">Supporter Pack</button>
+  </div>
+  <p style="font-size:12px;color:#b7c6dc">
+    Virtual coins have no cash value. Purchases and ads are inactive until configured.
+  </p>
+</section>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const canvas = $("game");
+const ctx = canvas.getContext("2d");
+
+/* Add your real HTTPS hosted checkout URL here. Never put secret keys here. */
+const CHECKOUT_URL = "";
+
+const maps = [
+  {name:"ROOFTOP DISTRICT",sky:"#192d49",ground:"#34485d",enemy:"#f06470"},
+  {name:"DESERT OUTPOST",sky:"#79554b",ground:"#69513c",enemy:"#e76548"},
+  {name:"JUNGLE RUINS",sky:"#17443c",ground:"#345b42",enemy:"#e57a4f"}
+];
+
+let mapIndex=0, player, enemies=[], bullets=[], particles=[];
+let coins=Number(localStorage.getItem("lastStandCoins")||0);
+let wave=1, ammo=12, maxAmmo=12, armor=0, medkits=1;
+let running=false, gameOver=false, lastTime=0, spawnTime=0;
+let score=0, reloadTime=0, shotDelay=0, toast="Press START to deploy";
+const keys={};
+const touch={left:false,right:false,jump:false,fire:false};
+
+function newPlayer(){
+  return {x:110,y:390,w:36,h:64,vx:0,vy:0,hp:100,
+    grounded:true,face:1,invulnerable:0};
+}
+function say(text){toast=text;$("message").textContent=text;}
+function saveCoins(){
+  localStorage.setItem("lastStandCoins",String(coins));
+}
+function updateUI(){
+  $("health").textContent=Math.max(0,Math.ceil(player.hp));
+  $("wave").textContent=wave;
+  $("coins").textContent=coins;
+  $("ammo").textContent=ammo+"/"+maxAmmo;
+}
+function spawnEnemy(){
+  const side=Math.random()<.5?0:1;
+  enemies.push({
+    x:side?canvas.width+20:-40,y:430,w:35,h:58,
+    hp:2+Math.floor(wave/3),
+    speed:(.7+Math.random()*.4+wave*.04)*(mapIndex===1?1.2:1),
+    attack:0,face:side?-1:1
+  });
+}
+function start(){
+  if(gameOver){reset();return}
+  running=true;
+  say("Survive the wave!");
+  if(enemies.length===0){
+    for(let i=0;i<3+wave;i++)spawnEnemy();
+  }
+}
+function reset(){
+  player=newPlayer(); enemies=[]; bullets=[]; particles=[];
+  wave=1; ammo=maxAmmo; score=0; gameOver=false; running=true;
+  spawnTime=1; say("Survive the wave!");
+  for(let i=0;i<3;i++)spawnEnemy();
+  updateUI();
+}
+function shoot(){
+  if(!running||gameOver||shotDelay>0||reloadTime>0)return;
+  if(ammo<=0){say("Out of ammo — reload!");return}
+  ammo--; shotDelay=.22;
+  bullets.push({
+    x:player.x+player.w/2+player.face*20,
+    y:player.y+27,vx:player.face*12,life:1
+  });
+  updateUI();
+}
+function reload(){
+  if(!running||ammo===maxAmmo||reloadTime>0)return;
+  reloadTime=1;
+  say("Reloading...");
+}
+function heal(){
+  if(medkits>0&&player.hp<100){
+    medkits--;player.hp=Math.min(100,player.hp+35);
+    say("Medkit used");updateUI();
+  } else say(medkits?"Health is already full":"Buy a medkit with coins.");
+}
+function buy(kind){
+  const costs={med:15,armor:30,ammo:25};
+  if(coins<costs[kind]){say("Not enough coins yet.");return}
+  coins-=costs[kind];saveCoins();
+  if(kind==="med"){medkits++;say("Medkit purchased.")}
+  if(kind==="armor"){armor=Math.min(4,armor+1);say("Armor upgraded.")}
+  if(kind==="ammo"){maxAmmo+=4;ammo=maxAmmo;say("Magazine upgraded.")}
+  updateUI();
+}
+function changeMap(){
+  mapIndex=Number($("map").value);
+  $("mapname").textContent=maps[mapIndex].name;
+  say("Map changed!");
+  draw();
+}
+function endGame(){
+  running=false;gameOver=true;
+  say("Game over! Press START to try again.");
+}
+function update(dt){
+  if(!running||gameOver)return;
+  dt=Math.min(dt,.04);
+  shotDelay=Math.max(0,shotDelay-dt);
+  if(reloadTime>0){
+    reloadTime-=dt;
+    if(reloadTime<=0){ammo=maxAmmo;say("Reload complete");}
+  }
+  player.invulnerable=Math.max(0,player.invulnerable-dt);
+  const dir=(keys.ArrowRight||keys.d||touch.right?1:0)
+           -(keys.ArrowLeft||keys.a||touch.left?1:0);
+  player.x=Math.max(0,Math.min(canvas.width-player.w,player.x+dir*230*dt));
+  if(dir)player.face=dir;
+  if((keys.ArrowUp||keys.w||touch.jump)&&player.grounded){
+    player.vy=-600;player.grounded=false;
+  }
+  player.vy+=1400*dt;
+  player.y+=player.vy*dt;
+  if(player.y+player.h>=494){
+    player.y=494-player.h;player.vy=0;player.grounded=true;
+  }
+  if(keys[" "]||touch.fire)shoot();
+
+  spawnTime-=dt;
+  if(spawnTime<=0&&enemies.length<Math.min(4+wave,12)){
+    spawnEnemy();spawnTime=Math.max(.45,1.8-wave*.06);
+  }
+
+  for(const b of bullets){
+    b.x+=b.vx;b.life-=dt;
+    for(const e of enemies){
+      if(!e.dead&&b.x>e.x&&b.x<e.x+e.w&&b.y>e.y&&b.y<e.y+e.h){
+        e.hp--;b.life=0;
+        for(let i=0;i<4;i++)particles.push({
+          x:b.x,y:b.y,vx:(Math.random()-.5)*100,
+          vy:(Math.random()-.5)*100,life:.3
+        });
+        if(e.hp<=0){
+          e.dead=true;coins+=5+Math.floor(Math.random()*5);
+          score+=10;saveCoins();
+        }
+        break;
+      }
+    }
+  }
+  bullets=bullets.filter(b=>b.life>0&&b.x>-30&&b.x<canvas.width+30);
+
+  for(const e of enemies){
+    if(e.dead)continue;
+    const dx=player.x-e.x;e.face=dx<0?-1:1;
+    if(Math.abs(dx)>40)e.x+=Math.sign(dx)*e.speed*60*dt;
+    else{
+      e.attack-=dt;
+      if(e.attack<=0&&player.invulnerable<=0){
+        player.hp-=Math.max(3,8-armor*1.5);
+        player.invulnerable=.6;e.attack=.9;
+        if(player.hp<=0){player.hp=0;endGame();}
+      }
+    }
+  }
+  enemies=enemies.filter(e=>!e.dead&&e.x>-100&&e.x<canvas.width+100);
+  particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt});
+  particles=particles.filter(p=>p.life>0);
+
+  if(enemies.length===0&&running){
+    wave++;coins+=10+wave*2;saveCoins();
+    say("Wave cleared! Bonus coins earned.");
+    for(let i=0;i<Math.min(2+wave,8);i++)spawnEnemy();
+  }
+  updateUI();
+}
+function character(x,y,w,h,color,face){
+  ctx.fillStyle="#0006";ctx.fillRect(x+5,500,w-2,4);
+  ctx.fillStyle=color;ctx.fillRect(x+7,y+20,w-14,h-20);
+  ctx.fillStyle="#e8c6a3";
+  ctx.beginPath();ctx.arc(x+w/2,y+12,11,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#202c3e";ctx.fillRect(x+5,y+3,w-10,7);
+  ctx.fillRect(face>0?x+w-4:x-10,y+28,20,7);
+}
+function draw(){
+  const m=maps[mapIndex];
+  const g=ctx.createLinearGradient(0,0,0,540);
+  g.addColorStop(0,m.sky);g.addColorStop(1,"#111927");
+  ctx.fillStyle=g;ctx.fillRect(0,0,960,540);
+
+  for(let i=0;i<14;i++){
+    const x=i*75,h=80+(i*43%130);
+    ctx.fillStyle="#101b2a";ctx.fillRect(x,390-h,55,h+110);
+    ctx.fillStyle="#33465b";
+    for(let y=410-h;y<390;y+=24)ctx.fillRect(x+12,y,7,9);
+  }
+  ctx.fillStyle=m.ground;ctx.fillRect(0,494,960,46);
+  ctx.fillStyle="#718093";ctx.fillRect(0,494,960,4);
+
+  if(player&&!(player.invulnerable>0&&Math.floor(performance.now()/90)%2===0))
+    character(player.x,player.y,player.w,player.h,"#6eb7ff",player.face);
+  enemies.forEach(e=>character(e.x,e.y,e.w,e.h,m.enemy,e.face));
+
+  ctx.fillStyle="#ffd166";
+  bullets.forEach(b=>ctx.fillRect(b.x-7,b.y-2,16,4));
+  particles.forEach(p=>{
+    ctx.globalAlpha=Math.max(0,p.life*3);
+    ctx.fillStyle="#ffd166";ctx.fillRect(p.x,p.y,4,4);
+  });
+  ctx.globalAlpha=1;
+  ctx.fillStyle="white";ctx.font="bold 20px system-ui";
+  ctx.fillText("WAVE "+wave,18,28);
+  ctx.font="15px system-ui";ctx.fillText("SCORE "+score,18,51);
+
+  if(!running){
+    ctx.fillStyle="#0009";ctx.fillRect(0,0,960,540);
+    ctx.textAlign="center";ctx.fillStyle="white";
+    ctx.font="bold 42px system-ui";ctx.fillText("LAST STAND",480,245);
+    ctx.font="20px system-ui";
+    ctx.fillText(gameOver?"GAME OVER":"Ready to deploy",480,282);
+    ctx.font="16px system-ui";ctx.fillText("Tap START to play",480,315);
+    ctx.textAlign="left";
+  }
+}
+let previous=0;
+function loop(t){
+  const dt=previous?(t-previous)/1000:0;previous=t;
+  update(dt);draw();requestAnimationFrame(loop);
+}
+
+/* Fullscreen works only where the browser supports it.
+   Landscape lock is optional; rotate the phone manually if needed. */
+async function fullscreen(){
+  const box=$("gamebox");
+  try{
+    if(!document.fullscreenElement){
+      if(box.requestFullscreen)await box.requestFullscreen();
+      else if(box.webkitRequestFullscreen)box.webkitRequestFullscreen();
+      if(screen.orientation&&screen.orientation.lock){
+        try{await screen.orientation.lock("landscape")}catch(e){}
+      }
+    }else{
+      if(document.exitFullscreen)await document.exitFullscreen();
+      else if(document.webkitExitFullscreen)document.webkitExitFullscreen();
+    }
+  }catch(e){say("Rotate your phone sideways and try fullscreen in Chrome.")}
+}
+document.addEventListener("fullscreenchange",()=>{
+  $("fullscreenBtn").textContent=document.fullscreenElement?"⛶ EXIT FULLSCREEN":"⛶ FULLSCREEN";
+});
+
+/* Hold buttons: movement and firing stay active while pressed. */
+function hold(id,prop){
+  const el=$(id);
+  const down=e=>{e.preventDefault();touch[prop]=true};
+  const up=e=>{e.preventDefault();touch[prop]=false};
+  el.addEventListener("pointerdown",down);
+  ["pointerup","pointercancel","pointerleave"].forEach(ev=>el.addEventListener(ev,up));
+}
+hold("left","left");hold("right","right");
+hold("jump","jump");hold("fire","fire");
+
+$("start").onclick=start;
+$("restart").onclick=reset;
+$("fullscreenBtn").onclick=fullscreen;
+$("reload").onclick=reload;
+$("med").onclick=heal;
+$("buyMed").onclick=()=>buy("med");
+$("buyArmor").onclick=()=>buy("armor");
+$("buyAmmo").onclick=()=>buy("ammo");
+$("map").onchange=changeMap;
+$("support").onclick=()=>{
+  if(CHECKOUT_URL.startsWith("https://"))location.href=CHECKOUT_URL;
+  else say("Checkout is not configured. No payment has been taken.");
+};
+
+window.addEventListener("keydown",e=>{
+  keys[e.key===" "?" ":e.key]=true;
+  if(["ArrowLeft","ArrowRight","ArrowUp"," "].includes(e.key))e.preventDefault();
+  if(e.key.toLowerCase()==="r")reload();
+  if(e.key.toLowerCase()==="h")heal();
+});
+window.addEventListener("keyup",e=>{keys[e.key===" "?" ":e.key]=false});
+
+canvas.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="touch"){
+    const rect=canvas.getBoundingClientRect();
+    if(e.clientX-rect.left>rect.width*.55)shoot();
+    else if(player.grounded){player.vy=-600;player.grounded=false}
+  }
+});
+
+player=newPlayer();updateUI();draw();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
